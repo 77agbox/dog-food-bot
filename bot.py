@@ -1,24 +1,40 @@
-
 import asyncio
 import logging
+import sys
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import ReplyKeyboardRemove, KeyboardButton
-
+from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 # ──────────────────────────────────────────────
-TOKEN = 8645128580:AAE01cRpbAjbozxVhff6L4zf-R_xAhBPj1A          # ← замени на свой токен от BotFather
-ADMIN_ID = 462740408                 # ← твой Telegram ID (узнай через @userinfobot)
+TOKEN = "8645128580:AAE01cRpbAjbozxVhff6L4zf-R_xAhBPj1A"
+ADMIN_ID = 462740408
 # ──────────────────────────────────────────────
 
-logging.basicConfig(level=logging.INFO)
+# Настраиваем логирование — чтобы видеть, что происходит
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
 
-bot = Bot(token=TOKEN)
+logger = logging.getLogger(__name__)
+
+print("=== bot.py начал выполняться ===")
+sys.stdout.flush()
+
+try:
+    bot = Bot(token=TOKEN)
+    logger.info("Бот успешно создан")
+except Exception as e:
+    logger.error(f"Ошибка при создании Bot: {e}")
+    print(f"Критическая ошибка при создании Bot: {e}")
+    sys.exit(1)
+
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
@@ -40,16 +56,13 @@ class Form(StatesGroup):
 
 def get_main_keyboard() -> types.ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
-
     builder.button(text="Подобрать корм")
     builder.button(text="Оформить заказ")
-
-    builder.adjust(1)  # по одной кнопке в ряд; можно изменить на 2
-
+    builder.adjust(1)  # по одной кнопке в столбик
     return builder.as_markup(
         resize_keyboard=True,
         one_time_keyboard=False,
-        input_field_placeholder="Выберите действие..."
+        input_field_placeholder="Выберите действие…"
     )
 
 
@@ -62,7 +75,7 @@ main_kb = get_main_keyboard()
 async def cmd_start(message: types.Message):
     await message.answer(
         "Привет! Я помогу подобрать корм для твоей собаки 🐶\n\n"
-        "Нажми кнопку ниже, чтобы начать.",
+        "Нажми кнопку ниже, чтобы начать подбор.",
         reply_markup=main_kb
     )
 
@@ -80,14 +93,14 @@ async def start_form(message: types.Message, state: FSMContext):
 async def process_breed(message: types.Message, state: FSMContext):
     await state.update_data(breed=message.text.strip())
     await state.set_state(Form.age)
-    await message.answer("Сколько лет / месяцев твоей собаке?")
+    await message.answer("Сколько лет или месяцев твоей собаке?")
 
 
 @dp.message(Form.age)
 async def process_age(message: types.Message, state: FSMContext):
     await state.update_data(age=message.text.strip())
     await state.set_state(Form.weight)
-    await message.answer("Какой вес собаки (в кг)?  Например: 12 или 4.5")
+    await message.answer("Какой вес собаки в кг? (можно дробное число)")
 
 
 @dp.message(Form.weight)
@@ -95,10 +108,10 @@ async def process_weight(message: types.Message, state: FSMContext):
     await state.update_data(weight=message.text.strip())
     await state.set_state(Form.activity)
     await message.answer(
-        "Какой уровень активности?\n\n"
-        "1 — мало гуляет, диванная собака\n"
+        "Уровень активности:\n\n"
+        "1 — мало гуляет\n"
         "2 — средняя активность\n"
-        "3 — очень активная, много бегает / тренировки"
+        "3 — очень активная"
     )
 
 
@@ -107,8 +120,7 @@ async def process_activity(message: types.Message, state: FSMContext):
     await state.update_data(activity=message.text.strip())
     await state.set_state(Form.features)
     await message.answer(
-        "Есть ли особенности / проблемы?\n"
-        "(аллергия, стерилизация, чувствительное пищеварение, ожирение и т.д.)\n"
+        "Есть ли особенности? (аллергия, стерилизация, чувствительное пищеварение, ожирение и т.д.)\n"
         "Если нет — напиши «нет»"
     )
 
@@ -119,24 +131,21 @@ async def process_features(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
 
-    summary = (
-        f"Данные собаки:\n"
+    text = (
+        "Твоя собака:\n"
         f"• Порода: {data.get('breed', '—')}\n"
         f"• Возраст: {data.get('age', '—')}\n"
         f"• Вес: {data.get('weight', '—')} кг\n"
         f"• Активность: {data.get('activity', '—')}\n"
         f"• Особенности: {data.get('features', 'нет')}\n\n"
-        f"Рекомендую рассмотреть следующие варианты:\n\n"
-        f"1. Корм Ягнёнок с рисом 12 кг — 3200 ₽\n"
-        f"   (универсальный, для средних и крупных пород)\n\n"
-        f"2. Корм Индейка гипоаллергенный 10 кг — 3800 ₽\n"
-        f"   (подходит при аллергии, чувствительном ЖКТ)\n\n"
-        f"3. Корм для щенков Курица 5 кг — 1800 ₽\n"
-        f"   (для щенков до 12 месяцев)\n\n"
-        f"Напиши номер варианта (1, 2 или 3), который тебе подходит"
+        "Рекомендую рассмотреть:\n\n"
+        "1. Ягнёнок с рисом 12 кг — 3200 ₽\n"
+        "2. Индейка гипоаллергенный 10 кг — 3800 ₽\n"
+        "3. Для щенков курица 5 кг — 1800 ₽\n\n"
+        "Напиши номер (1, 2 или 3)"
     )
 
-    await message.answer(summary)
+    await message.answer(text)
     await state.set_state(Form.choice)
 
 
@@ -144,58 +153,58 @@ async def process_features(message: types.Message, state: FSMContext):
 async def process_choice(message: types.Message, state: FSMContext):
     await state.update_data(choice=message.text.strip())
     await state.set_state(Form.quantity)
-    await message.answer("Сколько упаковок хочешь заказать?")
+    await message.answer("Сколько упаковок?")
 
 
 @dp.message(Form.quantity)
 async def process_quantity(message: types.Message, state: FSMContext):
     await state.update_data(quantity=message.text.strip())
     await state.set_state(Form.name)
-    await message.answer("Как к тебе обращаться? (имя)")
+    await message.answer("Как тебя зовут?")
 
 
 @dp.message(Form.name)
 async def process_name(message: types.Message, state: FSMContext):
     await state.update_data(name=message.text.strip())
     await state.set_state(Form.phone)
-    await message.answer("Твой номер телефона для связи")
+    await message.answer("Номер телефона для связи")
 
 
 @dp.message(Form.phone)
 async def process_phone(message: types.Message, state: FSMContext):
     await state.update_data(phone=message.text.strip())
     await state.set_state(Form.address)
-    await message.answer("Адрес доставки\n(или напиши «самовывоз»)")
+    await message.answer("Адрес доставки (или напиши «самовывоз»)")
 
 
 @dp.message(Form.address)
 async def process_address_and_finish(message: types.Message, state: FSMContext):
     data = await state.get_data()
 
-    order_text = (
-        "🛒 <b>Новый заказ!</b>\n\n"
+    order = (
+        "🛒 <b>Новый заказ</b>\n\n"
         f"Клиент: {data.get('name', '—')}\n"
         f"Телефон: {data.get('phone', '—')}\n"
         f"Адрес: {message.text}\n\n"
         f"Порода: {data.get('breed', '—')}\n"
         f"Вес: {data.get('weight', '—')} кг\n"
-        f"Выбрал вариант: {data.get('choice', '—')}\n"
+        f"Вариант: {data.get('choice', '—')}\n"
         f"Количество: {data.get('quantity', '—')} шт"
     )
 
     try:
-        await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
+        await bot.send_message(ADMIN_ID, order, parse_mode="HTML")
         await message.answer(
-            "Заказ успешно отправлен! 🎉\nСкоро с тобой свяжутся.\nСпасибо!",
+            "Заказ отправлен! 🎉 Скоро с тобой свяжутся.\nСпасибо!",
             reply_markup=main_kb
         )
     except Exception as e:
+        logger.error(f"Не удалось отправить заказ админу: {e}")
         await message.answer(
-            "Заказ сформирован, но не удалось отправить уведомление администратору.\n"
+            "Заказ сформирован, но уведомление не отправилось.\n"
             "Пожалуйста, свяжись с нами напрямую.",
             reply_markup=main_kb
         )
-        logging.error(f"Не удалось отправить заказ админу: {e}")
 
     await state.clear()
 
@@ -203,9 +212,34 @@ async def process_address_and_finish(message: types.Message, state: FSMContext):
 # ─── Запуск ──────────────────────────────────────────────────────────────────
 
 async def main():
-    await dp.start_polling(bot, allowed_updates=types.default_allowed_updates)
+    logger.info("Запуск бота начат")
+
+    try:
+        me = await bot.get_me()
+        logger.info(f"Успешная авторизация → @{me.username} ({me.first_name})")
+        print(f"Бот запущен как: @{me.username}")
+        sys.stdout.flush()
+    except Exception as e:
+        logger.error(f"Ошибка авторизации: {e}")
+        print(f"Ошибка авторизации: {e}")
+        sys.stdout.flush()
+        return
+
+    # Удаляем webhook, если он был установлен ранее
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Webhook удалён (если был)")
+    except Exception:
+        pass
+
+    logger.info("Запускаем polling...")
+    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
-
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Бот остановлен пользователем")
+    except Exception as e:
+        logger.error(f"Критическая ошибка в main: {e}")
