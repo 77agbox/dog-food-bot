@@ -12,7 +12,7 @@ from aiogram.types import ReplyKeyboardRemove, KeyboardButton
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 # ──────────────────────────────────────────────
-TOKEN = "8645128580:AAE01cRpbAjbozxVhff6L4zf-R_xAhBPj1A"          # ← замени на свой токен от BotFather
+TOKEN = 8645128580:AAE01cRpbAjbozxVhff6L4zf-R_xAhBPj1A          # ← замени на свой токен от BotFather
 ADMIN_ID = 462740408                 # ← твой Telegram ID (узнай через @userinfobot)
 # ──────────────────────────────────────────────
 
@@ -208,3 +208,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
