@@ -29,11 +29,18 @@ class Form(StatesGroup):
     phone = State()
     address = State()
 
-main_kb = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton("Подобрать корм")],
-        [KeyboardButton("Оформить заказ")],
-    ],
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
+
+# ... (остальной код)
+
+builder = ReplyKeyboardBuilder()
+
+builder.button(text="Подобрать корм")
+builder.button(text="Оформить заказ")
+
+builder.adjust(1)  # по 1 кнопке в ряд (можно 2, если хочешь в одну строку)
+
+main_kb = builder.as_markup(
     resize_keyboard=True,
     one_time_keyboard=False
 )
@@ -142,4 +149,5 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+
     asyncio.run(main())
